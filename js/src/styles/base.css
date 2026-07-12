@@ -1,0 +1,14 @@
+/* Global utility classes the pattern-auth components rely on. Safe to load
+   alongside a host app that defines the same names — the rules are identical
+   to the reference integration. */
+.mono { font-family: 'Share Tech Mono', monospace; }
+.blink { animation: pa-blk 1.2s step-end infinite; }
+@keyframes pa-blk { 50% { opacity: .25; } }
+.scan {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9;
+  opacity: var(--scan-opacity, 1);
+  background: repeating-linear-gradient(0deg, rgba(0,0,0,.14) 0 1px, transparent 1px 3px);
+}

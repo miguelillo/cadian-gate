@@ -1,0 +1,47 @@
+{
+  "name": "@miguelillo/cadian-gate-react",
+  "version": "0.1.0",
+  "description": "React components for pattern-unlock authentication: 6×6 PatternPad, themeable LoginPage (pattern + password + TOTP), device fingerprinting and a typed users-admin API client. Pairs with the Miguelillo.CadianGate NuGet package.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/miguelillo/cadian-gate.git",
+    "directory": "js"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
+  },
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    },
+    "./styles.css": "./dist/styles.css"
+  },
+  "files": ["dist"],
+  "sideEffects": ["**/*.css"],
+  "scripts": {
+    "build": "tsc && vite build",
+    "test": "vitest run"
+  },
+  "peerDependencies": {
+    "react": "^18.0.0",
+    "react-dom": "^18.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
+    "@vitejs/plugin-react": "^4.3.1",
+    "typescript": "^5.5.3",
+    "vite": "^5.3.4",
+    "vite-plugin-dts": "^4.0.3",
+    "vitest": "^4.1.10",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  }
+}

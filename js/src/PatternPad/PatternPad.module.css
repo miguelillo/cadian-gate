@@ -1,0 +1,90 @@
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+.pad {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  touch-action: none;
+  cursor: crosshair;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid var(--edge, rgba(120, 200, 220, 0.25));
+  border-radius: 10px;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.disabled { opacity: 0.5; cursor: not-allowed; }
+
+.dot {
+  fill: transparent;
+  stroke: var(--cy, #58e6ff);
+  stroke-width: 0.8;
+  opacity: 0.5;
+  transition: opacity 0.12s;
+}
+.dotOn {
+  fill: var(--cy, #58e6ff);
+  opacity: 1;
+}
+.halo {
+  fill: none;
+  stroke: var(--cy, #58e6ff);
+  stroke-width: 0.7;
+  opacity: 0.35;
+}
+.head {
+  fill: var(--cy, #58e6ff);
+  opacity: 0.9;
+}
+.trail {
+  fill: none;
+  stroke: var(--cy, #58e6ff);
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  opacity: 0.85;
+  filter: drop-shadow(0 0 2px var(--cy, #58e6ff));
+  stroke-dasharray: 3 2;
+  animation: trail-flow 0.6s linear infinite;
+}
+@keyframes trail-flow {
+  to { stroke-dashoffset: -5; }
+}
+
+.ring {
+  fill: none;
+  stroke: var(--cy, #58e6ff);
+  stroke-width: 0.6;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: ring-rip 1s ease-out infinite;
+  pointer-events: none;
+}
+@keyframes ring-rip {
+  from { transform: scale(0.4); opacity: 0.9; }
+  to   { transform: scale(1.9); opacity: 0; }
+}
+
+.meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 2px;
+  color: var(--muted, #7f97a3);
+}
+.clear {
+  background: none;
+  border: none;
+  color: var(--red, #ff5470);
+  font-family: inherit;
+  font-size: 10px;
+  letter-spacing: 2px;
+  cursor: pointer;
+  padding: 2px 4px;
+}
+.clear:hover { text-decoration: underline; }
