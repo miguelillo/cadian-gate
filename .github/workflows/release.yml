@@ -5,6 +5,11 @@ name: Release
 on:
   push:
     tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to publish (e.g. 0.1.0) — used when not running from a v* tag'
+        required: true
 
 permissions:
   contents: read
@@ -12,7 +17,7 @@ permissions:
 
 jobs:
   nuget:
-    name: Publish NuGet — Miguelillo.PatternAuth
+    name: Publish NuGet — Miguelillo.CadianGate
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -22,7 +27,9 @@ jobs:
       - name: Test
         run: dotnet test dotnet/PatternAuth.slnx --nologo
       - name: Pack
-        run: dotnet pack dotnet/src/PatternAuth/PatternAuth.csproj -c Release -o out "/p:Version=${GITHUB_REF_NAME#v}"
+        run: dotnet pack dotnet/src/PatternAuth/PatternAuth.csproj -c Release -o out "/p:Version=${VERSION#v}"
+        env:
+          VERSION: ${{ inputs.version || github.ref_name }}
       - name: Push
         run: dotnet nuget push out/*.nupkg --source "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json" --api-key "${{ secrets.GITHUB_TOKEN }}"
 
@@ -41,7 +48,9 @@ jobs:
       - run: npm install
       - run: npm test
       - name: Set version from tag
-        run: npm version "${GITHUB_REF_NAME#v}" --no-git-tag-version --allow-same-version
+        run: npm version "${VERSION#v}" --no-git-tag-version --allow-same-version
+        env:
+          VERSION: ${{ inputs.version || github.ref_name }}
       - run: npm run build
       - run: npm publish
         env:
