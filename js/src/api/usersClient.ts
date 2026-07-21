@@ -5,16 +5,23 @@
 export interface AuthUser {
   id: string;
   label: string;
+  /** Login name — set for 'password' users, null for 'pattern' users. */
+  username: string | null;
+  /** How this user authenticates. */
+  method: 'pattern' | 'password';
   totpEnabled: boolean;
   backupCodesRemaining: number;
   createdAt: string;
   lastLoginAt: string | null;
 }
 
+/** Exactly one of `pattern` or `username` must be provided. */
 export interface NewUser {
   label: string;
-  /** Dash-joined dot indices, e.g. "0-7-14-21". */
-  pattern: string;
+  /** Pattern user: dash-joined dot indices, e.g. "0-7-14-21". */
+  pattern?: string | null;
+  /** Password user: login name (3–32 chars, [a-z0-9._-]). */
+  username?: string | null;
   password: string;
   totpSecret?: string | null;
   /** Current authenticator code proving the secret was enrolled. */

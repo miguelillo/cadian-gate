@@ -5,13 +5,16 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace PatternAuth;
 
+// Exactly one of Pattern (pattern user) or Username (traditional
+// username+password user) must be supplied.
 public record UserCreateRequest(
     string Label,
-    string Pattern,
     string Password,
-    string? TotpSecret,
-    string? TotpCode,
-    List<string>? BackupCodes);
+    string? Pattern = null,
+    string? Username = null,
+    string? TotpSecret = null,
+    string? TotpCode = null,
+    List<string>? BackupCodes = null);
 
 // Authenticated management of pattern-auth users. All endpoints require a valid
 // session (via pattern or break-glass). Secrets are never read back.
@@ -37,6 +40,11 @@ public static class PatternAuthUsersEndpoints
 
         users.MapPost("", (UserCreateRequest body, UserService svc) =>
         {
+            var hasPattern = !string.IsNullOrWhiteSpace(body.Pattern);
+            var hasUsername = !string.IsNullOrWhiteSpace(body.Username);
+            if (hasPattern == hasUsername)
+                return Results.Json(new { ok = false, error = "Provide either a pattern or a username (not both)." }, statusCode: 400);
+
             // If a TOTP secret is supplied, require a matching code so we only
             // enable 2FA once the authenticator is proven to be set up.
             var totpEnabled = false;
@@ -52,7 +60,9 @@ public static class PatternAuthUsersEndpoints
                 .Select(c => BCrypt.Net.BCrypt.HashPassword(c.Trim().ToUpperInvariant(), workFactor: 12))
                 .ToList();
 
-            var (ok, error, id) = svc.Create(body.Label, body.Pattern, body.Password, body.TotpSecret, totpEnabled, backupHashes);
+            var (ok, error, id) = hasPattern
+                ? svc.Create(body.Label, body.Pattern, body.Password, body.TotpSecret, totpEnabled, backupHashes)
+                : svc.CreatePasswordUser(body.Label, body.Username, body.Password, body.TotpSecret, totpEnabled, backupHashes);
             return ok
                 ? Results.Ok(new { ok = true, id, label = body.Label.Trim() })
                 : Results.Json(new { ok = false, error }, statusCode: 400);

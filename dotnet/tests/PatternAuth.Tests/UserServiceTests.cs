@@ -80,4 +80,43 @@ public class UserServiceTests
         Assert.Equal(0, svc.Count());
         Assert.False(svc.Available);       // no collection ⇒ store unavailable
     }
+
+    [Theory]
+    [InlineData("miguel", "miguel")]
+    [InlineData("  Miguel  ", "miguel")]        // trims + lowercases
+    [InlineData("m.igu_el-01", "m.igu_el-01")]  // allowed punctuation
+    public void NormalizeUsername_accepts_valid(string input, string expected)
+    {
+        Assert.Equal(expected, UserService.NormalizeUsername(input));
+    }
+
+    [Theory]
+    [InlineData("ab")]                // too short (min 3)
+    [InlineData("has space")]         // whitespace
+    [InlineData("acénto")]            // non-ASCII
+    [InlineData("user@host")]         // disallowed symbol
+    [InlineData("")]                  // empty
+    [InlineData(null)]
+    public void NormalizeUsername_rejects_invalid(string? input)
+    {
+        Assert.Null(UserService.NormalizeUsername(input));
+    }
+
+    [Fact]
+    public void NormalizeUsername_rejects_over_32_chars()
+    {
+        Assert.Null(UserService.NormalizeUsername(new string('a', 33)));
+        Assert.NotNull(UserService.NormalizeUsername(new string('a', 32)));
+    }
+
+    [Fact]
+    public void Username_flows_are_null_without_mongo()
+    {
+        var svc = Make();
+        Assert.Null(svc.IdentifyByUsername("miguel", "hunter2"));
+        Assert.False(svc.HasPasswordUsers());
+        var (ok, error, _) = svc.CreatePasswordUser("Miguel", "miguel", "hunter2", null, false, null);
+        Assert.False(ok);
+        Assert.NotNull(error);
+    }
 }
