@@ -39,9 +39,11 @@ export default function LoginPage({
   showFingerprintPanel = true,
   geoLookup = true,
 }: LoginPageProps) {
-  const [mode, setMode]               = useState<'pattern' | 'breakglass'>('pattern');
-  const [breakglass, setBreakglass]   = useState(true);   // password sign-in offered?
+  const [mode, setMode]               = useState<'pattern' | 'user' | 'breakglass'>('pattern');
+  const [breakglass, setBreakglass]   = useState(true);   // env break-glass sign-in offered?
+  const [userLogin, setUserLogin]     = useState(false);  // traditional username+password offered?
   const [pattern, setPattern]         = useState<number[]>([]);
+  const [username, setUsername]       = useState('');
   const [password, setPassword]       = useState('');
   const [totpCode, setTotpCode]       = useState('');
   const [totpRequired, setTotpRequired] = useState(false);
@@ -64,6 +66,7 @@ export default function LoginPage({
         setTotpRequired(d.totpRequired ?? false);
         const bg = d.breakglassAvailable ?? true;
         setBreakglass(bg);
+        setUserLogin(d.passwordLoginAvailable ?? false);
         if (!bg) setMode('pattern');
         if (!geoLookup) {
           setGeo({ ip: '—', city: '—', country: '—', isp: '—', latencyMs });
@@ -118,6 +121,7 @@ export default function LoginPage({
           password,
           totpCode: totpCode || null,
           pattern: mode === 'pattern' ? pattern.join('-') : null,
+          username: mode === 'user' ? username : null,
           fingerprint: {
             ip: geo?.ip ?? null, isp: geo?.isp ?? null, city: geo?.city ?? null,
             country: geo?.country ?? null, latencyMs: geo?.latencyMs ?? null,
@@ -168,9 +172,13 @@ export default function LoginPage({
         </div>
 
         <form className={styles.loginForm} onSubmit={handleSubmit}>
-          {breakglass && (
+          {(breakglass || userLogin) && (
             <div className={styles.loginFieldLabel} style={{ display: 'flex', gap: 16 }}>
-              {(['pattern', 'breakglass'] as const).map(m => (
+              {([
+                ['pattern', 'PATTERN'],
+                ...(userLogin ? [['user', 'USER LOGIN']] : []),
+                ...(breakglass ? [['breakglass', 'OVERRIDE']] : []),
+              ] as ['pattern' | 'user' | 'breakglass', string][]).map(([m, label]) => (
                 <button
                   key={m}
                   type="button"
@@ -181,7 +189,7 @@ export default function LoginPage({
                     color: mode === m ? 'var(--cy, #26e0ff)' : 'var(--muted, #7f97a3)',
                   }}
                 >
-                  {m === 'pattern' ? 'PATTERN' : 'PASSWORD'}
+                  {label}
                 </button>
               ))}
             </div>
@@ -196,8 +204,26 @@ export default function LoginPage({
             </>
           )}
 
+          {mode === 'user' && (
+            <>
+              <div className={styles.loginFieldLabel} style={{ marginTop: 4 }}>USERNAME</div>
+              <input
+                className={styles.loginInput}
+                type="text"
+                value={username}
+                onChange={e => setUsername(e.target.value)}
+                placeholder="enter username"
+                autoFocus
+                disabled={loading || locked}
+                spellCheck={false}
+                autoCapitalize="none"
+                autoComplete="username"
+              />
+            </>
+          )}
+
           <div className={styles.loginFieldLabel} style={{ marginTop: 4 }}>
-            {mode === 'pattern' ? 'PASSWORD' : 'ACCESS KEY'}
+            {mode === 'breakglass' ? 'ACCESS KEY' : 'PASSWORD'}
           </div>
           <div className={styles.pwWrap}>
             <input
@@ -225,10 +251,10 @@ export default function LoginPage({
             </div>
           </div>
 
-          {(mode === 'pattern' || totpRequired) && (
+          {(mode !== 'breakglass' || totpRequired) && (
             <>
               <div className={styles.loginFieldLabel} style={{ marginTop: 4 }}>
-                AUTHENTICATOR CODE{mode === 'pattern' ? ' (IF ENABLED)' : ''}
+                AUTHENTICATOR CODE{mode !== 'breakglass' ? ' (IF ENABLED)' : ''}
               </div>
               <div className={styles.totpWrap}>
                 <input
@@ -272,7 +298,9 @@ export default function LoginPage({
           <button
             className={styles.loginBtn}
             type="submit"
-            disabled={loading || locked || !password || (mode === 'pattern' && pattern.length < 4)}
+            disabled={loading || locked || !password
+              || (mode === 'pattern' && pattern.length < 4)
+              || (mode === 'user' && !username.trim())}
           >
             {locked
               ? <span>LOCKED — {mm}:{ss}</span>

@@ -6,16 +6,20 @@ using PatternAuth.Models;
 
 namespace PatternAuth;
 
-// Pattern-auth user store (MongoDB, collection name from options).
+// Auth user store (MongoDB, collection name from options).
 //
-// Identity model: a user is identified AND authenticated by the combination of
-// an unlock pattern and a password. Their _id is a keyed HMAC-SHA256 of the
-// normalized "pattern|password" — deterministic (so a login is an O(1) lookup)
-// but not brute-forceable offline without the server key, even if the DB
-// leaks. The raw pattern/password are never persisted.
+// Two identity models share the collection:
 //
-// Null-tolerant: without Mongo configured the store is empty, so pattern login
-// simply never matches and the env break-glass path still works.
+//  • Pattern users: identified AND authenticated by the combination of an
+//    unlock pattern and a password. Their _id is a keyed HMAC-SHA256 of the
+//    normalized "pattern|password" — deterministic (so a login is an O(1)
+//    lookup) but not brute-forceable offline without the server key, even if
+//    the DB leaks. The raw pattern/password are never persisted.
+//  • Password users: a traditional username + password account. Looked up by
+//    normalized username, verified against a bcrypt hash.
+//
+// Null-tolerant: without Mongo configured the store is empty, so pattern and
+// username login simply never match and the env break-glass path still works.
 public class UserService
 {
     public const int DefaultGridSize = 6;
@@ -76,6 +80,34 @@ public class UserService
         catch { return null; }
     }
 
+    // Validates a login name: 3–32 chars of [a-z0-9._-] after lowercasing.
+    // Returns the canonical (lowercase) form or null.
+    public static string? NormalizeUsername(string? username)
+    {
+        if (string.IsNullOrWhiteSpace(username)) return null;
+        var norm = username.Trim().ToLowerInvariant();
+        if (norm.Length is < 3 or > 32) return null;
+        foreach (var c in norm)
+        {
+            if (!(char.IsAsciiLetterLower(c) || char.IsAsciiDigit(c) || c is '.' or '_' or '-')) return null;
+        }
+        return norm;
+    }
+
+    // Traditional username + password authentication (bcrypt verify).
+    public User? IdentifyByUsername(string? username, string? password)
+    {
+        if (_collection is null || string.IsNullOrEmpty(password)) return null;
+        var norm = NormalizeUsername(username);
+        if (norm is null) return null;
+        User? user;
+        try { user = _collection.Find(u => u.Username == norm).FirstOrDefault(); }
+        catch { return null; }
+        if (user?.PasswordHash is null) return null;
+        try { return BCrypt.Net.BCrypt.Verify(password, user.PasswordHash) ? user : null; }
+        catch { return null; }
+    }
+
     public (bool ok, string? error, string? id) Create(string? label, string? pattern, string? password,
         string? totpSecret, bool totpEnabled, List<string>? backupCodeHashes)
     {
@@ -105,6 +137,37 @@ public class UserService
         catch { return (false, "Could not save the user.", null); }
     }
 
+    public (bool ok, string? error, string? id) CreatePasswordUser(string? label, string? username, string? password,
+        string? totpSecret, bool totpEnabled, List<string>? backupCodeHashes)
+    {
+        if (_collection is null) return (false, "User store unavailable (Mongo not configured).", null);
+        if (string.IsNullOrWhiteSpace(label)) return (false, "A label is required.", null);
+        var norm = NormalizeUsername(username);
+        if (norm is null) return (false, "Username must be 3–32 characters: letters, digits, '.', '_' or '-'.", null);
+        if (string.IsNullOrEmpty(password)) return (false, "A password is required.", null);
+
+        var id = Convert.ToHexString(RandomNumberGenerator.GetBytes(16)).ToLowerInvariant();
+        try
+        {
+            if (_collection.Find(u => u.Username == norm).FirstOrDefault() is not null)
+                return (false, "That username is already in use.", null);
+
+            _collection.InsertOne(new User
+            {
+                Id = id,
+                Label = label.Trim(),
+                Username = norm,
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword(password, workFactor: 12),
+                TotpSecret = string.IsNullOrWhiteSpace(totpSecret) ? null : totpSecret,
+                TotpEnabled = totpEnabled && !string.IsNullOrWhiteSpace(totpSecret),
+                BackupCodeHashes = backupCodeHashes ?? new(),
+                CreatedAt = DateTime.UtcNow,
+            });
+            return (true, null, id);
+        }
+        catch { return (false, "Could not save the user.", null); }
+    }
+
     // Users listed for admin — labels and metadata only, never secrets.
     public List<object> List()
     {
@@ -117,6 +180,8 @@ public class UserService
                 {
                     id = u.Id,
                     label = u.Label,
+                    username = u.Username,
+                    method = u.IsPasswordUser ? "password" : "pattern",
                     totpEnabled = u.TotpEnabled,
                     backupCodesRemaining = u.BackupCodeHashes.Count,
                     createdAt = u.CreatedAt,
@@ -125,6 +190,15 @@ public class UserService
                 .ToList();
         }
         catch { return new(); }
+    }
+
+    // Any username+password accounts? Drives whether the login UI offers the
+    // traditional sign-in tab.
+    public bool HasPasswordUsers()
+    {
+        if (_collection is null) return false;
+        try { return _collection.CountDocuments(u => u.Username != null) > 0; }
+        catch { return false; }
     }
 
     public long Count()

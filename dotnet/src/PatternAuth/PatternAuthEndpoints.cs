@@ -10,7 +10,7 @@ using Microsoft.IdentityModel.Tokens;
 
 namespace PatternAuth;
 
-public record LoginRequest(string Password, string? TotpCode, string? Pattern = null, LoginFingerprint? Fingerprint = null);
+public record LoginRequest(string Password, string? TotpCode, string? Pattern = null, string? Username = null, LoginFingerprint? Fingerprint = null);
 
 // Client fingerprint sent with a login attempt, stored on the access-events
 // document. All optional and untrusted — lengths are capped when persisted
@@ -36,7 +36,8 @@ public static class PatternAuthEndpoints
             var totpRequired = config[opts.TotpEnabledKey] == "true" &&
                                !string.IsNullOrWhiteSpace(config[opts.TotpSecretKey]);
             var breakglassAvailable = config[opts.BreakglassEnabledKey] == "true" || users.Count() == 0;
-            return Results.Ok(new { totpRequired, breakglassAvailable });
+            var passwordLoginAvailable = users.HasPasswordUsers();
+            return Results.Ok(new { totpRequired, breakglassAvailable, passwordLoginAvailable });
         });
 
         auth.MapGet("/setup-totp", (IConfiguration config) =>
@@ -99,15 +100,21 @@ public static class PatternAuthEndpoints
             string subject = "owner";
             string invalidMsg = "Invalid credentials";
 
-            if (!string.IsNullOrWhiteSpace(body.Pattern))
+            if (!string.IsNullOrWhiteSpace(body.Pattern) || !string.IsNullOrWhiteSpace(body.Username))
             {
-                // Pattern-auth flow: pattern + password identify the user in one
-                // keyed-HMAC lookup; TOTP (if enrolled) is the second factor.
-                var user = users.Identify(body.Pattern, body.Password);
+                // Store-user flows. Pattern: pattern + password identify the
+                // user in one keyed-HMAC lookup. Username: classic lookup by
+                // login name + bcrypt verify. Either way TOTP (if enrolled) is
+                // the second factor.
+                var user = !string.IsNullOrWhiteSpace(body.Pattern)
+                    ? users.Identify(body.Pattern, body.Password)
+                    : users.IdentifyByUsername(body.Username, body.Password);
                 if (user is null)
                 {
                     ok = false;
-                    invalidMsg = "Pattern or password not recognized.";
+                    invalidMsg = !string.IsNullOrWhiteSpace(body.Pattern)
+                        ? "Pattern or password not recognized."
+                        : "Username or password not recognized.";
                 }
                 else if (user.TotpEnabled)
                 {

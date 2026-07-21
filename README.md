@@ -2,6 +2,10 @@
 
 Phone-style **pattern-unlock authentication** for web apps: a 6×6 unlock pattern + password + optional TOTP. The user's identity is a **keyed HMAC-SHA256 of the normalized pattern + password** — deterministic (login is an O(1) lookup) but not brute-forceable offline without the server key, and the raw pattern/password are never stored.
 
+Alongside pattern users, the same store supports **traditional username + password accounts** (bcrypt-verified, same TOTP/backup-code second factor) — the login page offers a `USER LOGIN` tab automatically once one exists.
+
+📖 **[Full documentation](docs/index.html)** — login methods, API reference, configuration and security model, in style.
+
 Two packages, one version line:
 
 | Package | Registry | What it is |
@@ -42,8 +46,9 @@ Configuration values (key names are overridable via options):
 
 Notes:
 - **Rate limiting**: `POST /login` carries `RequireRateLimiting("login")` by default — define that policy in your host (or set `LoginRateLimitPolicy = null`).
-- **Mongo optional**: without a database the store is empty, pattern login never matches, and break-glass stays available — handy for CI and first boot.
+- **Mongo optional**: without a database the store is empty, pattern/username login never matches, and break-glass stays available — handy for CI and first boot.
 - Login attempts (success/invalid/locked) are audited to the `access_events` collection with an optional client fingerprint.
+- **User kinds**: `POST /api/users` accepts exactly one of `pattern` (pattern user) or `username` (password user, 3–32 chars of `[a-z0-9._-]`, bcrypt at work factor 12). `GET /api/auth/config` reports `passwordLoginAvailable` so the UI knows whether to offer the tab.
 
 ## Frontend
 
@@ -59,7 +64,7 @@ import '@miguelillo/cadian-gate-react/styles.css';
 ```
 
 - `PatternPad` — the 6×6 drag pad (touch-hardened for iOS/WebKit; emits the dot sequence).
-- `LoginPage` — full login screen: pattern/password modes, TOTP digit boxes, lockout countdown, animated fingerprint panel (`showFingerprintPanel={false}` to hide, `geoLookup={false}` to skip the ipapi.co call).
+- `LoginPage` — full login screen: pattern / user-login / break-glass modes (tabs follow what `GET /api/auth/config` offers), TOTP digit boxes, lockout countdown, animated fingerprint panel (`showFingerprintPanel={false}` to hide, `geoLookup={false}` to skip the ipapi.co call).
 - `createUsersApi()` — typed client for the users CRUD, to build your own admin UI.
 - Theming: components read CSS custom properties with safe fallbacks — override `--cy`, `--red`, `--amb`, `--text-rgb`, `--bg`, `--panel-bg-rgb` (and friends) to re-skin.
 
@@ -102,7 +107,8 @@ Push a tag `vX.Y.Z` — the Release workflow tests, packs and publishes **both**
 
 ## Security model (summary)
 
-- Identity = `HMAC-SHA256(key, normalizedPattern + '␟' + password)`, hex — nothing recoverable server-side without the key; DB leak alone reveals no credentials.
+- Pattern identity = `HMAC-SHA256(key, normalizedPattern + '␟' + password)`, hex — nothing recoverable server-side without the key; DB leak alone reveals no credentials.
+- Password users: normalized unique username + bcrypt (work factor 12) hash; the `_id` is random, so nothing about the credential is derivable from it.
 - Session = JWT (HS256) in an `HttpOnly; Secure; SameSite=Strict` cookie.
 - Per-IP lockout (default 10 failures → 15 min) + optional host rate-limit policy on login.
 - TOTP (±1 window) per user; single-use bcrypt backup codes.
