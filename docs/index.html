@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CADIAN GATE // DOCS</title>
+<meta name="description" content="Pattern-unlock + username/password authentication for web apps. ASP.NET Core backend, React frontend.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:      #04090d;
+    --panel:   #071219;
+    --panel-2: #0a1a23;
+    --line:    #0e2a33;
+    --line-hi: #14414f;
+    --cy:      #26e0ff;
+    --cy-dim:  #1699b8;
+    --txt:     #c9dbe4;
+    --muted:   #7f97a3;
+    --red:     #ff3b5c;
+    --amber:   #f7c948;
+    --green:   #3dff9c;
+    --mono: 'Share Tech Mono', ui-monospace, 'Cascadia Mono', Consolas, monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; scroll-padding-top: 72px; }
+  body {
+    background: var(--bg);
+    color: var(--txt);
+    font-family: var(--mono);
+    font-size: 15px;
+    line-height: 1.6;
+    letter-spacing: .02em;
+    overflow-x: hidden;
+  }
+  /* CRT scanlines + vignette */
+  body::before {
+    content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 50;
+    background: repeating-linear-gradient(0deg, rgba(0,0,0,.13) 0 1px, transparent 1px 3px);
+  }
+  body::after {
+    content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 49;
+    background: radial-gradient(ellipse at 50% 20%, transparent 55%, rgba(0,0,0,.5));
+  }
+  ::selection { background: rgba(38,224,255,.28); }
+
+  a { color: var(--cy); text-decoration: none; }
+  a:hover { text-shadow: 0 0 8px rgba(38,224,255,.6); }
+
+  .blink { animation: blk 1.2s step-end infinite; }
+  @keyframes blk { 50% { opacity: .25; } }
+
+  /* ── Top bar ─────────────────────────────────────────── */
+  header {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 60;
+    display: flex; align-items: center; gap: 18px;
+    padding: 0 22px; height: 56px;
+    background: rgba(4,9,13,.92); backdrop-filter: blur(6px);
+    border-bottom: 1px solid var(--line);
+  }
+  .brand { font-size: 17px; letter-spacing: .28em; color: #fff; white-space: nowrap; }
+  .brand b { color: var(--cy); font-weight: normal; }
+  .brand-sub { color: var(--muted); font-size: 11px; letter-spacing: .18em; white-space: nowrap; }
+  nav { margin-left: auto; display: flex; gap: 4px; flex-wrap: wrap; }
+  nav a {
+    color: var(--muted); font-size: 11px; letter-spacing: .18em;
+    padding: 5px 10px; border: 1px solid transparent;
+  }
+  nav a:hover, nav a.active { color: var(--cy); border-color: var(--line-hi); background: rgba(38,224,255,.05); }
+  .uplink { color: var(--muted); font-size: 11px; letter-spacing: .14em; white-space: nowrap; }
+  .uplink i { font-style: normal; color: var(--green); }
+
+  main { max-width: 1180px; margin: 0 auto; padding: 96px 22px 40px; }
+
+  /* ── Frame with corner brackets ──────────────────────── */
+  .frame { position: relative; padding: 2px; }
+  .frame::before, .frame::after,
+  .frame > .fc::before, .frame > .fc::after {
+    content: ''; position: absolute; width: 22px; height: 22px; z-index: 2;
+  }
+  .frame::before      { top: 0; left: 0;   border-top: 2px solid var(--cy); border-left: 2px solid var(--cy); }
+  .frame::after       { top: 0; right: 0;  border-top: 2px solid var(--cy); border-right: 2px solid var(--cy); }
+  .frame > .fc::before{ bottom: 0; left: 0;  border-bottom: 2px solid var(--cy); border-left: 2px solid var(--cy); }
+  .frame > .fc::after { bottom: 0; right: 0; border-bottom: 2px solid var(--cy); border-right: 2px solid var(--cy); }
+
+  /* ── Hero ────────────────────────────────────────────── */
+  .hero {
+    border: 1px solid var(--line); background: var(--panel);
+    padding: 56px 40px 44px; text-align: center; position: relative; overflow: hidden;
+  }
+  .hero::before {
+    content: ''; position: absolute; left: 0; right: 0; height: 2px; top: 0;
+    background: linear-gradient(90deg, transparent, rgba(38,224,255,.7), transparent);
+    animation: sweep 5s linear infinite;
+  }
+  @keyframes sweep { 0% { top: -2px; } 100% { top: 100%; } }
+  .hero h1 {
+    font-size: clamp(26px, 5vw, 44px); font-weight: normal;
+    letter-spacing: .34em; color: #fff; margin-bottom: 10px;
+    text-shadow: 0 0 24px rgba(38,224,255,.35);
+  }
+  .hero h1 b { color: var(--cy); font-weight: normal; }
+  .hero .tag { color: var(--muted); font-size: 12px; letter-spacing: .26em; }
+  .hero p.lead { max-width: 760px; margin: 22px auto 0; color: var(--txt); font-size: 14px; }
+  .hero p.lead em { color: var(--cy); font-style: normal; }
+  .badges { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 26px; }
+  .badge {
+    border: 1px solid var(--line-hi); color: var(--cy); background: rgba(38,224,255,.05);
+    font-size: 11px; letter-spacing: .14em; padding: 6px 14px;
+  }
+  .badge.dim { color: var(--muted); border-color: var(--line); background: none; }
+
+  /* ── Sections / panels ───────────────────────────────── */
+  section { margin-top: 56px; }
+  .sec-head { display: flex; align-items: baseline; gap: 14px; margin-bottom: 18px; }
+  .sec-head h2 { font-size: 16px; font-weight: normal; letter-spacing: .26em; color: #fff; white-space: nowrap; }
+  .sec-head .rule { flex: 1; height: 1px; background: linear-gradient(90deg, var(--line-hi), transparent); }
+  .sec-head .idx { color: var(--cy); font-size: 12px; letter-spacing: .2em; }
+  .panel { border: 1px solid var(--line); background: var(--panel); padding: 22px; }
+  .panel h3 { font-size: 12px; font-weight: normal; letter-spacing: .22em; color: var(--cy); margin-bottom: 12px; }
+  .muted { color: var(--muted); }
+  .kbd { color: var(--amber); }
+
+  .grid { display: grid; gap: 14px; }
+  .g2 { grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+  .g3 { grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); }
+
+  /* ── Login-method cards ──────────────────────────────── */
+  .card {
+    border: 1px solid var(--line); background: var(--panel);
+    padding: 20px; position: relative; transition: border-color .2s, box-shadow .2s;
+  }
+  .card:hover { border-color: var(--line-hi); box-shadow: 0 0 24px rgba(38,224,255,.07) inset; }
+  .card .status { position: absolute; top: 16px; right: 16px; font-size: 10px; letter-spacing: .18em; }
+  .st-core   { color: var(--green); }
+  .st-opt    { color: var(--cy-dim); }
+  .st-danger { color: var(--red); }
+  .card h3 { margin-bottom: 4px; }
+  .card .sub { color: var(--muted); font-size: 11px; letter-spacing: .12em; margin-bottom: 12px; }
+  .card p { font-size: 13px; color: var(--txt); }
+  .card p + p { margin-top: 8px; }
+  .dotgrid { display: grid; grid-template-columns: repeat(6, 10px); gap: 6px; margin: 10px 0 2px; }
+  .dotgrid i {
+    width: 10px; height: 10px; border: 1px solid var(--cy-dim); border-radius: 50%;
+  }
+  .dotgrid i.on { background: var(--cy); border-color: var(--cy); box-shadow: 0 0 6px rgba(38,224,255,.8); }
+
+  /* ── Code blocks ─────────────────────────────────────── */
+  .code {
+    border: 1px solid var(--line); background: #050e14; margin-top: 12px;
+    font-size: 12.5px; line-height: 1.55; overflow-x: auto;
+  }
+  .code .bar {
+    display: flex; justify-content: space-between; padding: 6px 12px;
+    border-bottom: 1px solid var(--line); color: var(--muted);
+    font-size: 10px; letter-spacing: .2em; position: sticky; left: 0;
+  }
+  .code pre { padding: 14px 16px; white-space: pre; }
+  .c-k { color: var(--cy); }          /* keyword / tag        */
+  .c-s { color: var(--green); }       /* string               */
+  .c-c { color: #56707c; }            /* comment              */
+  .c-f { color: var(--amber); }       /* function / attribute */
+  .c-n { color: #e8f4f8; }            /* name                 */
+
+  /* ── Tables (event-log style) ────────────────────────── */
+  .tbl-wrap { overflow-x: auto; border: 1px solid var(--line); background: var(--panel); }
+  table { border-collapse: collapse; width: 100%; font-size: 12.5px; min-width: 640px; }
+  th {
+    text-align: left; color: var(--muted); font-weight: normal; font-size: 10px;
+    letter-spacing: .22em; padding: 10px 14px; border-bottom: 1px solid var(--line-hi);
+    background: var(--panel-2); white-space: nowrap;
+  }
+  td { padding: 9px 14px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: rgba(38,224,255,.03); }
+  .m-get  { color: var(--green); }
+  .m-post { color: var(--amber); }
+  .m-del  { color: var(--red); }
+  .lock   { color: var(--red); font-size: 10px; letter-spacing: .1em; }
+  .open   { color: var(--green); font-size: 10px; letter-spacing: .1em; }
+  code.inline {
+    font-family: inherit; color: var(--cy); background: rgba(38,224,255,.07);
+    padding: 1px 6px; border: 1px solid var(--line);
+  }
+
+  /* ── Flow diagram ────────────────────────────────────── */
+  .flow { display: flex; align-items: stretch; gap: 0; overflow-x: auto; padding: 6px 0; }
+  .flow .node {
+    border: 1px solid var(--line-hi); background: var(--panel-2); padding: 12px 16px;
+    min-width: 158px; text-align: center; flex-shrink: 0;
+  }
+  .flow .node b { display: block; color: var(--cy); font-weight: normal; font-size: 12px; letter-spacing: .16em; }
+  .flow .node span { color: var(--muted); font-size: 10.5px; letter-spacing: .06em; }
+  .flow .arr {
+    align-self: center; color: var(--cy-dim); padding: 0 10px; flex-shrink: 0;
+    font-size: 16px; text-shadow: 0 0 8px rgba(38,224,255,.5);
+  }
+
+  .callout {
+    border: 1px solid rgba(255,59,92,.4); background: rgba(255,59,92,.05);
+    padding: 14px 18px; margin-top: 14px; font-size: 12.5px; color: #ffb9c6;
+  }
+  .callout.amber { border-color: rgba(247,201,72,.4); background: rgba(247,201,72,.05); color: #ffe9ad; }
+  .callout b { font-weight: normal; letter-spacing: .14em; }
+
+  footer {
+    margin-top: 64px; padding: 26px 22px 34px; border-top: 1px solid var(--line);
+    text-align: center; color: var(--muted); font-size: 11px; letter-spacing: .22em;
+  }
+  footer .dot { color: var(--cy); }
+
+  @media (max-width: 760px) {
+    .brand-sub, .uplink { display: none; }
+    .hero { padding: 40px 18px 34px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <span class="brand">CADIAN<b>GATE</b></span>
+  <span class="brand-sub">// AUTH-VIS v0.2 — DOCUMENTATION</span>
+  <nav>
+    <a href="#methods">METHODS</a>
+    <a href="#backend">BACKEND</a>
+    <a href="#frontend">FRONTEND</a>
+    <a href="#api">API</a>
+    <a href="#config">CONFIG</a>
+    <a href="#security">SECURITY</a>
+  </nav>
+  <span class="uplink">UPLINK: <i>SECURE</i> ● <span id="clock">--:--:--</span></span>
+</header>
+
+<main>
+
+  <!-- ═══ HERO ═══ -->
+  <div class="frame"><span class="fc"></span>
+    <div class="hero">
+      <h1>CADIAN <b>GATE</b></h1>
+      <div class="tag">// RESTRICTED ACCESS — AUTHORIZED PERSONNEL ONLY</div>
+      <p class="lead">
+        Phone-style <em>pattern-unlock</em> and traditional <em>username + password</em>
+        authentication for web apps. A hardened ASP.NET Core backend and a themeable
+        React frontend — TOTP second factor, single-use backup codes, per-IP lockout
+        and a full access audit log included.
+      </p>
+      <div class="badges">
+        <span class="badge">Miguelillo.CadianGate ▪ NuGet</span>
+        <span class="badge">@miguelillo/cadian-gate-react ▪ npm</span>
+        <span class="badge dim">net10.0</span>
+        <span class="badge dim">React 18</span>
+        <span class="badge dim">MongoDB</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ LOGIN METHODS ═══ -->
+  <section id="methods">
+    <div class="sec-head"><span class="idx">01</span><h2>LOGIN METHODS</h2><div class="rule"></div></div>
+    <div class="grid g3">
+
+      <div class="card">
+        <span class="status st-core">● CORE</span>
+        <h3>PATTERN UNLOCK</h3>
+        <div class="sub">pattern + password → keyed HMAC identity</div>
+        <div class="dotgrid" aria-hidden="true">
+          <i class="on"></i><i></i><i></i><i></i><i></i><i></i>
+          <i></i><i class="on"></i><i></i><i></i><i></i><i></i>
+          <i></i><i></i><i class="on"></i><i></i><i></i><i></i>
+          <i></i><i></i><i></i><i class="on"></i><i></i><i class="on"></i>
+        </div>
+        <p>The user draws a pattern on a 6×6 grid (4+ distinct dots) and types a
+           password. The pair is hashed into a keyed <span class="kbd">HMAC-SHA256</span>
+           identity — login is a single O(1) lookup and the raw credentials are
+           never stored.</p>
+      </div>
+
+      <div class="card">
+        <span class="status st-core">● NEW</span>
+        <h3>USER LOGIN</h3>
+        <div class="sub">traditional username + password</div>
+        <p>Classic account sign-in: a login name (3–32 chars,
+           <span class="kbd">[a-z0-9._-]</span>, case-insensitive) verified against a
+           <span class="kbd">bcrypt</span> hash. Ideal for guests or anyone who
+           prefers typing over drawing.</p>
+        <p class="muted">The tab appears automatically on the login page once at
+           least one password user exists.</p>
+      </div>
+
+      <div class="card">
+        <span class="status st-danger">● OVERRIDE</span>
+        <h3>BREAK-GLASS</h3>
+        <div class="sub">single-operator env credentials</div>
+        <p>Emergency sign-in backed by environment variables — no database
+           required. Auto-disables once a store user exists (unless forced on)
+           and stays available at zero users so the first account can be
+           bootstrapped.</p>
+      </div>
+
+      <div class="card">
+        <span class="status st-opt">● 2FA</span>
+        <h3>TOTP</h3>
+        <div class="sub">authenticator second factor</div>
+        <p>Optional per-user 6-digit codes (SHA1 / 30s, Google-Authenticator
+           compatible). Enrollment is proven at user creation: the secret only
+           activates after a live code verifies.</p>
+      </div>
+
+      <div class="card">
+        <span class="status st-opt">● RECOVERY</span>
+        <h3>BACKUP CODES</h3>
+        <div class="sub">single-use bcrypt-hashed recovery</div>
+        <p>Pre-generated recovery codes accepted in place of a TOTP code. Each
+           one is stored as a bcrypt hash and permanently consumed on first
+           use.</p>
+      </div>
+
+      <div class="card">
+        <span class="status st-opt">● SHIELD</span>
+        <h3>IP LOCKOUT + AUDIT</h3>
+        <div class="sub">10 failures → 15 min lock (tunable)</div>
+        <p>Every attempt — success, invalid or locked — is recorded to the
+           <code class="inline">access_events</code> collection with an optional
+           client fingerprint (IP, ISP, device, display, timezone…).</p>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ═══ AUTH FLOW ═══ -->
+  <section id="flow">
+    <div class="sec-head"><span class="idx">02</span><h2>AUTHENTICATION FLOW</h2><div class="rule"></div></div>
+    <div class="panel">
+      <div class="flow">
+        <div class="node"><b>CLIENT</b><span>pattern / username<br>+ password + TOTP</span></div>
+        <span class="arr">▸▸</span>
+        <div class="node"><b>LOCKOUT CHECK</b><span>per-IP failure<br>counter · HTTP 423</span></div>
+        <span class="arr">▸▸</span>
+        <div class="node"><b>IDENTIFY</b><span>HMAC lookup ·<br>bcrypt verify · env</span></div>
+        <span class="arr">▸▸</span>
+        <div class="node"><b>SECOND FACTOR</b><span>TOTP or single-use<br>backup code</span></div>
+        <span class="arr">▸▸</span>
+        <div class="node"><b>SESSION</b><span>JWT in HttpOnly<br>Secure cookie · 30d</span></div>
+      </div>
+      <p class="muted" style="margin-top:12px; font-size:12px">
+        One endpoint, three credential shapes: a request with <code class="inline">pattern</code>
+        takes the HMAC path, one with <code class="inline">username</code> takes the bcrypt path,
+        and one with neither falls back to break-glass (when available). Every branch shares the
+        same lockout, audit and session pipeline.
+      </p>
+    </div>
+  </section>
+
+  <!-- ═══ BACKEND ═══ -->
+  <section id="backend">
+    <div class="sec-head"><span class="idx">03</span><h2>BACKEND ▸ ASP.NET CORE</h2><div class="rule"></div></div>
+    <div class="panel">
+      <h3>// INSTALL + WIRE UP</h3>
+      <div class="code">
+        <div class="bar"><span>PROGRAM.CS</span><span>C# ▪ net10.0</span></div>
+<pre><span class="c-k">using</span> <span class="c-n">PatternAuth</span>;
+
+<span class="c-n">builder</span>.<span class="c-n">Services</span>.<span class="c-f">AddPatternAuth</span>(<span class="c-n">builder</span>.<span class="c-n">Configuration</span>, <span class="c-n">o</span> =&gt;
+{
+    <span class="c-c">// The only hook most hosts need — where Mongo comes from:</span>
+    <span class="c-n">o</span>.<span class="c-n">MongoDatabaseFactory</span> = <span class="c-n">sp</span> =&gt; <span class="c-n">sp</span>.<span class="c-f">GetRequiredService</span>&lt;<span class="c-n">MyMongoHolder</span>&gt;().<span class="c-n">Database</span>;
+    <span class="c-c">// o.CookieName = "my_token"; o.BasePath = "/api/auth"; …</span>
+});
+
+<span class="c-k">var</span> <span class="c-n">app</span> = <span class="c-n">builder</span>.<span class="c-f">Build</span>();
+<span class="c-n">app</span>.<span class="c-f">UseAuthentication</span>();
+<span class="c-n">app</span>.<span class="c-f">UseAuthorization</span>();
+<span class="c-n">app</span>.<span class="c-f">MapPatternAuthEndpoints</span>();       <span class="c-c">// /api/auth: me, config, setup-totp, login, logout</span>
+<span class="c-n">app</span>.<span class="c-f">MapPatternAuthUsersEndpoints</span>();  <span class="c-c">// /api/users: list, create, delete, new-totp-secret</span></pre>
+      </div>
+      <div class="callout amber">
+        <b>⚠ RATE LIMITING —</b> <code class="inline">POST /login</code> carries
+        <code class="inline">RequireRateLimiting("login")</code> by default. Define that policy in
+        your host (or set <code class="inline">LoginRateLimitPolicy = null</code>).
+      </div>
+      <div class="callout amber">
+        <b>⚠ MONGO OPTIONAL —</b> without a database the store is empty: pattern and
+        username login never match and break-glass stays available. Handy for CI and first boot.
+      </div>
+    </div>
+
+    <div class="panel" style="margin-top:14px">
+      <h3>// CREATING USERS (ADMIN API)</h3>
+      <p class="muted" style="font-size:12.5px; margin-bottom:4px">
+        <code class="inline">POST /api/users</code> accepts exactly one of
+        <code class="inline">pattern</code> or <code class="inline">username</code>:
+      </p>
+      <div class="grid g2">
+        <div class="code">
+          <div class="bar"><span>PATTERN USER</span><span>JSON</span></div>
+<pre>{
+  <span class="c-f">"label"</span>:    <span class="c-s">"Miguel"</span>,
+  <span class="c-f">"pattern"</span>:  <span class="c-s">"0-7-14-21-28-35"</span>,
+  <span class="c-f">"password"</span>: <span class="c-s">"…"</span>,
+  <span class="c-f">"totpSecret"</span>: <span class="c-s">"…"</span>,   <span class="c-c">// optional</span>
+  <span class="c-f">"totpCode"</span>:   <span class="c-s">"123456"</span>,
+  <span class="c-f">"backupCodes"</span>: [<span class="c-s">"AAAA-1111"</span>, <span class="c-s">"…"</span>]
+}</pre>
+        </div>
+        <div class="code">
+          <div class="bar"><span>PASSWORD USER (NEW)</span><span>JSON</span></div>
+<pre>{
+  <span class="c-f">"label"</span>:    <span class="c-s">"Guest"</span>,
+  <span class="c-f">"username"</span>: <span class="c-s">"guest"</span>,
+  <span class="c-f">"password"</span>: <span class="c-s">"…"</span>,
+  <span class="c-f">"totpSecret"</span>: <span class="c-s">"…"</span>,   <span class="c-c">// optional</span>
+  <span class="c-f">"totpCode"</span>:   <span class="c-s">"123456"</span>,
+  <span class="c-f">"backupCodes"</span>: [<span class="c-s">"BBBB-2222"</span>, <span class="c-s">"…"</span>]
+}</pre>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ FRONTEND ═══ -->
+  <section id="frontend">
+    <div class="sec-head"><span class="idx">04</span><h2>FRONTEND ▸ REACT</h2><div class="rule"></div></div>
+    <div class="panel">
+      <h3>// DROP-IN LOGIN PAGE</h3>
+      <div class="code">
+        <div class="bar"><span>APP.TSX</span><span>TSX ▪ React 18</span></div>
+<pre><span class="c-k">import</span> { <span class="c-n">LoginPage</span>, <span class="c-n">PatternPad</span>, <span class="c-n">createUsersApi</span> } <span class="c-k">from</span> <span class="c-s">'@miguelillo/cadian-gate-react'</span>;
+<span class="c-k">import</span> <span class="c-s">'@miguelillo/cadian-gate-react/styles.css'</span>;
+
+&lt;<span class="c-k">LoginPage</span>
+  <span class="c-f">onAuthenticated</span>={() =&gt; <span class="c-f">setAuthed</span>(<span class="c-k">true</span>)}
+  <span class="c-f">title</span>=<span class="c-s">"MY.APP"</span>
+  <span class="c-f">footer</span>={&lt;&gt;MY.APP v1 ● TLS ENCRYPTED&lt;/&gt;}
+/&gt;</pre>
+      </div>
+      <p class="muted" style="margin-top:12px; font-size:12.5px">
+        The page reads <code class="inline">GET /api/auth/config</code> and shows only the tabs the
+        server offers: <span class="kbd">PATTERN</span> always,
+        <span class="kbd">USER LOGIN</span> when <code class="inline">passwordLoginAvailable</code>,
+        <span class="kbd">OVERRIDE</span> when <code class="inline">breakglassAvailable</code>.
+        The animated “intrusion profile” fingerprint panel is on by default
+        (<code class="inline">showFingerprintPanel</code> / <code class="inline">geoLookup</code> to
+        tune it).
+      </p>
+    </div>
+  </section>
+
+  <!-- ═══ API ═══ -->
+  <section id="api">
+    <div class="sec-head"><span class="idx">05</span><h2>API REFERENCE</h2><div class="rule"></div></div>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>METHOD</th><th>ENDPOINT</th><th>AUTH</th><th>DESCRIPTION</th></tr></thead>
+        <tbody>
+          <tr><td class="m-get">GET</td><td><code class="inline">/api/auth/config</code></td><td><span class="open">PUBLIC</span></td>
+              <td>Login capabilities: <code class="inline">totpRequired</code>, <code class="inline">breakglassAvailable</code>, <code class="inline">passwordLoginAvailable</code></td></tr>
+          <tr><td class="m-post">POST</td><td><code class="inline">/api/auth/login</code></td><td><span class="open">PUBLIC</span></td>
+              <td>Authenticate. Body: <code class="inline">password</code> + one of <code class="inline">pattern</code> / <code class="inline">username</code> (or neither → break-glass), optional <code class="inline">totpCode</code>, <code class="inline">fingerprint</code>. Sets the JWT cookie. 401 invalid · 423 locked</td></tr>
+          <tr><td class="m-get">GET</td><td><code class="inline">/api/auth/me</code></td><td><span class="lock">SESSION</span></td>
+              <td>Session probe; returns <code class="inline">backupCodesRemaining</code></td></tr>
+          <tr><td class="m-post">POST</td><td><code class="inline">/api/auth/logout</code></td><td><span class="lock">SESSION</span></td>
+              <td>Clears the session cookie</td></tr>
+          <tr><td class="m-get">GET</td><td><code class="inline">/api/auth/setup-totp</code></td><td><span class="lock">SESSION</span></td>
+              <td>QR enrollment page for the break-glass TOTP secret</td></tr>
+          <tr><td class="m-get">GET</td><td><code class="inline">/api/users</code></td><td><span class="lock">SESSION</span></td>
+              <td>List users — id, label, <code class="inline">username</code>, <code class="inline">method</code> (<span class="kbd">pattern</span>|<span class="kbd">password</span>), TOTP state, timestamps. Never secrets</td></tr>
+          <tr><td class="m-post">POST</td><td><code class="inline">/api/users</code></td><td><span class="lock">SESSION</span></td>
+              <td>Create a pattern or password user (see §03)</td></tr>
+          <tr><td class="m-get">GET</td><td><code class="inline">/api/users/new-totp-secret</code></td><td><span class="lock">SESSION</span></td>
+              <td>Fresh TOTP secret + <code class="inline">otpauth://</code> URI for enrollment</td></tr>
+          <tr><td class="m-del">DELETE</td><td><code class="inline">/api/users/{id}</code></td><td><span class="lock">SESSION</span></td>
+              <td>Remove a user</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ═══ CONFIG ═══ -->
+  <section id="config">
+    <div class="sec-head"><span class="idx">06</span><h2>CONFIGURATION</h2><div class="rule"></div></div>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>KEY</th><th>REQ</th><th>PURPOSE</th></tr></thead>
+        <tbody>
+          <tr><td><code class="inline">JWT_SECRET</code></td><td><span class="lock">REQUIRED</span></td>
+              <td>Signs the session JWT; also the fallback HMAC key</td></tr>
+          <tr><td><code class="inline">HOMELAB_USER_ID_KEY</code></td><td class="muted">recommended</td>
+              <td>HMAC key for pattern-user identities (keep distinct from the JWT secret)</td></tr>
+          <tr><td><code class="inline">HOMELAB_PASSWORD_HASH</code></td><td class="muted">optional</td>
+              <td>bcrypt hash for the break-glass password sign-in</td></tr>
+          <tr><td><code class="inline">HOMELAB_TOTP_ENABLED</code> / <code class="inline">HOMELAB_TOTP_SECRET</code></td><td class="muted">optional</td>
+              <td>TOTP for the break-glass account</td></tr>
+          <tr><td><code class="inline">HOMELAB_BACKUP_CODES</code></td><td class="muted">optional</td>
+              <td>base64 of comma-joined bcrypt hashes (single-use recovery codes)</td></tr>
+          <tr><td><code class="inline">HOMELAB_BREAKGLASS_ENABLED</code></td><td class="muted">optional</td>
+              <td>Force break-glass on. Otherwise it auto-disables once ≥1 store user exists</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="muted" style="margin-top:10px; font-size:12px">
+      Key <em>names</em> are overridable via <code class="inline">PatternAuthOptions</code>, along with cookie
+      name, base paths, token lifetime, grid size, minimum pattern length, lockout thresholds and
+      Mongo collection names.
+    </p>
+  </section>
+
+  <!-- ═══ SECURITY ═══ -->
+  <section id="security">
+    <div class="sec-head"><span class="idx">07</span><h2>SECURITY MODEL</h2><div class="rule"></div></div>
+    <div class="grid g2">
+      <div class="panel">
+        <h3>// PATTERN IDENTITY</h3>
+        <div class="code">
+          <div class="bar"><span>IDENTITY DERIVATION</span><span>HMAC-SHA256</span></div>
+<pre>_id = <span class="c-f">HMAC-SHA256</span>( <span class="c-n">key</span> = HOMELAB_USER_ID_KEY,
+                  <span class="c-n">msg</span> = normalize(pattern) <span class="c-s">"␟"</span> password )</pre>
+        </div>
+        <p style="font-size:12.5px; margin-top:12px">Deterministic — login is an O(1) lookup —
+           yet not brute-forceable offline without the server key, even if the database leaks.
+           The raw pattern and password never touch disk.</p>
+      </div>
+      <div class="panel">
+        <h3>// PASSWORD IDENTITY</h3>
+        <div class="code">
+          <div class="bar"><span>VERIFICATION</span><span>BCRYPT wf=12</span></div>
+<pre>user = db.users.<span class="c-f">findOne</span>({ <span class="c-f">username</span>: <span class="c-f">normalize</span>(name) })
+ok   = <span class="c-f">bcrypt.verify</span>(password, user.passwordHash)</pre>
+        </div>
+        <p style="font-size:12.5px; margin-top:12px">Usernames are normalized (lowercase,
+           3–32 chars of <span class="kbd">[a-z0-9._-]</span>) and unique. Password users get a
+           random identifier — nothing about the credential is derivable from the id.</p>
+      </div>
+    </div>
+    <div class="panel" style="margin-top:14px">
+      <h3>// SHARED DEFENSES</h3>
+      <p style="font-size:13px">
+        ▸ HttpOnly + Secure + SameSite=Strict session cookie (JWT, HS256)<br>
+        ▸ Per-IP lockout: 10 failures → 15 minutes (HTTP 423 with countdown)<br>
+        ▸ Rate-limit metadata on <code class="inline">POST /login</code><br>
+        ▸ TOTP enrollment proven by a live code before 2FA activates<br>
+        ▸ Backup codes bcrypt-hashed, consumed atomically on first use<br>
+        ▸ Full access audit trail with optional client fingerprint
+      </p>
+      <div class="callout">
+        <b>⚠ THIS ACCESS ATTEMPT HAS BEEN LOGGED AND WILL BE REPORTED</b> — every login attempt,
+        successful or not, lands in <code class="inline">access_events</code>.
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  SYS: CADIAN-GATE DOCS <span class="dot">●</span> TLS + TOTP ENCRYPTED <span class="dot">●</span>
+  <a href="https://github.com/miguelillo/cadian-gate">GITHUB</a>
+  <span class="blink" style="color:var(--cy)">▮</span>
+</footer>
+
+<script>
+  // Live clock in the header, network-map style.
+  const clock = document.getElementById('clock');
+  const tick = () => { clock.textContent = new Date().toTimeString().slice(0, 8); };
+  tick(); setInterval(tick, 1000);
+
+  // Highlight the nav link of the section in view.
+  const links = [...document.querySelectorAll('nav a')];
+  const secs = links.map(a => document.querySelector(a.getAttribute('href')));
+  const onScroll = () => {
+    let active = 0;
+    secs.forEach((s, i) => { if (s && s.getBoundingClientRect().top < 120) active = i; });
+    links.forEach((a, i) => a.classList.toggle('active', i === active));
+  };
+  document.addEventListener('scroll', onScroll, { passive: true });
+  onScroll();
+</script>
+
+</body>
+</html>
